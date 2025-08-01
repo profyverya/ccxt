@@ -10701,6 +10701,17 @@ class Exchange {
                 'watchLiquidations': undefined,
                 'watchLiquidationsForSymbols': undefined,
                 'watchMyLiquidations': undefined,
+                'unWatchOrders': undefined,
+                'unWatchTrades': undefined,
+                'unWatchTradesForSymbols': undefined,
+                'unWatchOHLCVForSymbols': undefined,
+                'unWatchOrderBookForSymbols': undefined,
+                'unWatchPositions': undefined,
+                'unWatchOrderBook': undefined,
+                'unWatchTickers': undefined,
+                'unWatchMyTrades': undefined,
+                'unWatchTicker': undefined,
+                'unWatchOHLCV': undefined,
                 'watchMyLiquidationsForSymbols': undefined,
                 'withdraw': undefined,
                 'ws': undefined,
@@ -11261,6 +11272,9 @@ class Exchange {
     }
     async unWatchOrderBookForSymbols(symbols, params = {}) {
         throw new _errors_js__WEBPACK_IMPORTED_MODULE_4__.NotSupported(this.id + ' unWatchOrderBookForSymbols() is not supported yet');
+    }
+    async unWatchPositions(symbols = undefined, params = {}) {
+        throw new _errors_js__WEBPACK_IMPORTED_MODULE_4__.NotSupported(this.id + ' unWatchPositions() is not supported yet');
     }
     async fetchDepositAddresses(codes = undefined, params = {}) {
         throw new _errors_js__WEBPACK_IMPORTED_MODULE_4__.NotSupported(this.id + ' fetchDepositAddresses() is not supported yet');
@@ -12482,6 +12496,26 @@ class Exchange {
         trade['price'] = this.parseNumber(price);
         trade['cost'] = this.parseNumber(cost);
         return trade;
+    }
+    createCcxtTradeId(timestamp = undefined, side = undefined, amount = undefined, price = undefined, takerOrMaker = undefined) {
+        // this approach is being used by multiple exchanges (mexc, woo, coinsbit, dydx, ...)
+        let id = undefined;
+        if (timestamp !== undefined) {
+            id = this.numberToString(timestamp);
+            if (side !== undefined) {
+                id += '-' + side;
+            }
+            if (amount !== undefined) {
+                id += '-' + this.numberToString(amount);
+            }
+            if (price !== undefined) {
+                id += '-' + this.numberToString(price);
+            }
+            if (takerOrMaker !== undefined) {
+                id += '-' + takerOrMaker;
+            }
+        }
+        return id;
     }
     parsedFeeAndFees(container) {
         let fee = this.safeDict(container, 'fee');
@@ -15727,7 +15761,7 @@ class Exchange {
         let calls = 0;
         let result = [];
         let errors = 0;
-        const until = this.safeInteger2(params, 'untill', 'till'); // do not omit it from params here
+        const until = this.safeIntegerN(params, ['until', 'untill', 'till']); // do not omit it from params here
         [maxEntriesPerRequest, params] = this.handleMaxEntriesPerRequestAndParams(method, maxEntriesPerRequest, params);
         if ((paginationDirection === 'forward')) {
             if (since === undefined) {
@@ -16421,6 +16455,17 @@ class Exchange {
             else if (topic === 'orders' && (this.orders !== undefined)) {
                 this.orders = undefined;
             }
+            else if (topic === 'positions' && (this.positions !== undefined)) {
+                this.positions = undefined;
+                const clients = Object.values(this.clients);
+                for (let i = 0; i < clients.length; i++) {
+                    const client = clients[i];
+                    const futures = this.safeDict(client, 'futures');
+                    if ((futures !== undefined) && ('fetchPositionsSnapshot' in futures)) {
+                        delete futures['fetchPositionsSnapshot'];
+                    }
+                }
+            }
             else if (topic === 'ticker' && (this.tickers !== undefined)) {
                 const tickerSymbols = Object.keys(this.tickers);
                 for (let i = 0; i < tickerSymbols.length; i++) {
@@ -16762,6 +16807,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   PermissionDenied: () => (/* binding */ PermissionDenied),
 /* harmony export */   RateLimitExceeded: () => (/* binding */ RateLimitExceeded),
 /* harmony export */   RequestTimeout: () => (/* binding */ RequestTimeout),
+/* harmony export */   RestrictedLocation: () => (/* binding */ RestrictedLocation),
 /* harmony export */   UnsubscribeError: () => (/* binding */ UnsubscribeError),
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
@@ -16848,6 +16894,12 @@ class ManualInteractionNeeded extends OperationRejected {
     constructor(message) {
         super(message);
         this.name = 'ManualInteractionNeeded';
+    }
+}
+class RestrictedLocation extends OperationRejected {
+    constructor(message) {
+        super(message);
+        this.name = 'RestrictedLocation';
     }
 }
 class InsufficientFunds extends ExchangeError {
@@ -17007,7 +17059,7 @@ class UnsubscribeError extends BaseError {
     }
 }
 
-/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({ BaseError, ExchangeError, AuthenticationError, PermissionDenied, AccountNotEnabled, AccountSuspended, ArgumentsRequired, BadRequest, BadSymbol, OperationRejected, NoChange, MarginModeAlreadySet, MarketClosed, ManualInteractionNeeded, InsufficientFunds, InvalidAddress, AddressPending, InvalidOrder, OrderNotFound, OrderNotCached, OrderImmediatelyFillable, OrderNotFillable, DuplicateOrderId, ContractUnavailable, NotSupported, InvalidProxySettings, ExchangeClosedByUser, OperationFailed, NetworkError, DDoSProtection, RateLimitExceeded, ExchangeNotAvailable, OnMaintenance, InvalidNonce, ChecksumError, RequestTimeout, BadResponse, NullResponse, CancelPending, UnsubscribeError });
+/* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = ({ BaseError, ExchangeError, AuthenticationError, PermissionDenied, AccountNotEnabled, AccountSuspended, ArgumentsRequired, BadRequest, BadSymbol, OperationRejected, NoChange, MarginModeAlreadySet, MarketClosed, ManualInteractionNeeded, RestrictedLocation, InsufficientFunds, InvalidAddress, AddressPending, InvalidOrder, OrderNotFound, OrderNotCached, OrderImmediatelyFillable, OrderNotFillable, DuplicateOrderId, ContractUnavailable, NotSupported, InvalidProxySettings, ExchangeClosedByUser, OperationFailed, NetworkError, DDoSProtection, RateLimitExceeded, ExchangeNotAvailable, OnMaintenance, InvalidNonce, ChecksumError, RequestTimeout, BadResponse, NullResponse, CancelPending, UnsubscribeError });
 
 
 /***/ }),
@@ -17767,6 +17819,8 @@ const precisionConstants = {
     NO_PADDING,
     PAD_WITH_ZERO,
 };
+const assert = (x, y) => { if (!x)
+    throw new Error(y || 'assertion failed'); };
 /*  ------------------------------------------------------------------------ */
 // See https://stackoverflow.com/questions/1685680/how-to-avoid-scientific-notation-for-large-numbers-in-javascript for discussion
 function numberToString(x) {
@@ -17832,14 +17886,21 @@ const decimalToPrecision = (x, roundingMode, numPrecisionDigits, countingMode = 
     return _decimalToPrecision(x, roundingMode, numPrecisionDigits, countingMode, paddingMode);
 };
 const _decimalToPrecision = (x, roundingMode, numPrecisionDigits, countingMode = DECIMAL_PLACES, paddingMode = NO_PADDING) => {
-    if (countingMode === TICK_SIZE) {
-        if (typeof numPrecisionDigits === 'string') {
-            numPrecisionDigits = parseFloat(numPrecisionDigits);
-        }
-        if (numPrecisionDigits <= 0) {
-            throw new Error('TICK_SIZE cant be used with negative or zero numPrecisionDigits');
-        }
+    assert(numPrecisionDigits !== undefined, 'numPrecisionDigits should not be undefined');
+    if (typeof numPrecisionDigits === 'string') {
+        numPrecisionDigits = parseFloat(numPrecisionDigits);
     }
+    assert(Number.isFinite(numPrecisionDigits), 'numPrecisionDigits has an invalid number');
+    if (countingMode === TICK_SIZE) {
+        assert(numPrecisionDigits > 0, 'negative or zero numPrecisionDigits can not be used with TICK_SIZE precisionMode');
+    }
+    else {
+        assert(Number.isInteger(numPrecisionDigits), 'numPrecisionDigits must be an integer with DECIMAL_PLACES or SIGNIFICANT_DIGITS precisionMode');
+    }
+    assert((roundingMode === ROUND) || (roundingMode === TRUNCATE), 'invalid roundingMode provided');
+    assert(countingMode === DECIMAL_PLACES || countingMode === SIGNIFICANT_DIGITS || countingMode === TICK_SIZE, 'invalid countingMode provided');
+    assert(paddingMode === NO_PADDING || paddingMode === PAD_WITH_ZERO, 'invalid paddingMode provided');
+    // end of checks
     if (numPrecisionDigits < 0) {
         const toNearest = Math.pow(10, -numPrecisionDigits);
         if (roundingMode === ROUND) {
@@ -17853,6 +17914,21 @@ const _decimalToPrecision = (x, roundingMode, numPrecisionDigits, countingMode =
     if (countingMode === TICK_SIZE) {
         const precisionDigitsString = _decimalToPrecision(numPrecisionDigits, ROUND, 22, DECIMAL_PLACES, NO_PADDING);
         const newNumPrecisionDigits = precisionFromString(precisionDigitsString);
+        if (roundingMode === TRUNCATE) {
+            // First, truncate the string to avoid floating-point precision issues
+            const xStr = numberToString(x);
+            const truncatedX = truncate_to_string(xStr, Math.max(0, newNumPrecisionDigits));
+            const xNum = Number(truncatedX);
+            const scale = Math.pow(10, newNumPrecisionDigits);
+            const xScaled = Math.round(xNum * scale);
+            const tickScaled = Math.round(numPrecisionDigits * scale);
+            const ticks = Math.trunc(xScaled / tickScaled);
+            x = (ticks * tickScaled) / scale;
+            if (paddingMode === NO_PADDING) {
+                return String(Number(x.toFixed(newNumPrecisionDigits)));
+            }
+            return _decimalToPrecision(x, ROUND, newNumPrecisionDigits, DECIMAL_PLACES, paddingMode);
+        }
         let missing = x % numPrecisionDigits;
         // See: https://github.com/ccxt/ccxt/pull/6486
         missing = Number(_decimalToPrecision(missing, ROUND, 8, DECIMAL_PLACES, NO_PADDING));
@@ -17875,9 +17951,6 @@ const _decimalToPrecision = (x, roundingMode, numPrecisionDigits, countingMode =
                         x = Number(x) - missing - numPrecisionDigits;
                     }
                 }
-            }
-            else if (roundingMode === TRUNCATE) {
-                x = x - missing;
             }
         }
         return _decimalToPrecision(x, ROUND, newNumPrecisionDigits, DECIMAL_PLACES, paddingMode);
@@ -22695,6 +22768,7 @@ class binance extends _abstract_binance_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                         'portfolio/balance': 2,
                         'portfolio/negative-balance-exchange-record': 2,
                         'portfolio/pmloan-history': 5,
+                        'portfolio/earn-asset-balance': 150,
                         // staking
                         'staking/productList': 0.1,
                         'staking/position': 0.1,
@@ -22853,6 +22927,7 @@ class binance extends _abstract_binance_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                         'portfolio/repay-futures-negative-balance': 150,
                         'portfolio/mint': 20,
                         'portfolio/redeem': 20,
+                        'portfolio/earn-asset-transfer': 150,
                         'lending/auto-invest/plan/add': 0.1,
                         'lending/auto-invest/plan/edit': 0.1,
                         'lending/auto-invest/plan/edit-status': 0.1,
@@ -23041,6 +23116,7 @@ class binance extends _abstract_binance_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                         'apiTradingStatus': { 'cost': 1, 'noSymbol': 10 },
                         'lvtKlines': 1,
                         'convert/exchangeInfo': 4,
+                        'insuranceBalance': 1,
                     },
                 },
                 'fapiData': {
@@ -26231,29 +26307,52 @@ class binance extends _abstract_binance_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
         //         "time": 1597370495002
         //     }
         //
-        //     {
-        //         "symbol": "ETHBTC",
-        //         "priceChange": "0.00068700",
-        //         "priceChangePercent": "2.075",
-        //         "weightedAvgPrice": "0.03342681",
-        //         "prevClosePrice": "0.03310300",
-        //         "lastPrice": "0.03378900",
-        //         "lastQty": "0.07700000",
-        //         "bidPrice": "0.03378900",
-        //         "bidQty": "7.16800000",
-        //         "askPrice": "0.03379000",
-        //         "askQty": "24.00000000",
-        //         "openPrice": "0.03310200",
-        //         "highPrice": "0.03388900",
-        //         "lowPrice": "0.03306900",
-        //         "volume": "205478.41000000",
-        //         "quoteVolume": "6868.48826294",
-        //         "openTime": 1601469986932,
-        //         "closeTime": 1601556386932,
-        //         "firstId": 196098772,
-        //         "lastId": 196186315,
-        //         "count": 87544
-        //     }
+        // spot - ticker
+        //
+        //    {
+        //        "symbol": "BTCUSDT",
+        //        "priceChange": "-188.18000000",
+        //        "priceChangePercent": "-0.159",
+        //        "weightedAvgPrice": "118356.64734074",
+        //        "lastPrice": "118449.03000000",
+        //        "prevClosePrice": "118637.22000000",    // field absent in rolling ticker
+        //        "lastQty": "0.00731000",                // field absent in rolling ticker
+        //        "bidPrice": "118449.02000000",          // field absent in rolling ticker
+        //        "bidQty": "7.15931000",                 // field absent in rolling ticker
+        //        "askPrice": "118449.03000000",          // field absent in rolling ticker
+        //        "askQty": "0.09592000",                 // field absent in rolling ticker
+        //        "openPrice": "118637.21000000",
+        //        "highPrice": "119273.36000000",
+        //        "lowPrice": "117427.50000000",
+        //        "volume": "14741.41491000",
+        //        "quoteVolume": "1744744445.80640740",
+        //        "openTime": "1753701474013",
+        //        "closeTime": "1753787874013",
+        //        "firstId": "5116031635",
+        //        "lastId": "5117964946",
+        //        "count": "1933312"
+        //    }
+        //
+        // usdm tickers
+        //
+        //    {
+        //        "symbol": "SUSDT",
+        //        "priceChange": "-0.0229000",
+        //        "priceChangePercent": "-6.777",
+        //        "weightedAvgPrice": "0.3210035",
+        //        "lastPrice": "0.3150000",
+        //        "lastQty": "16",
+        //        "openPrice": "0.3379000",
+        //        "highPrice": "0.3411000",
+        //        "lowPrice": "0.3071000",
+        //        "volume": "120588225",
+        //        "quoteVolume": "38709237.2289000",
+        //        "openTime": "1753701720000",
+        //        "closeTime": "1753788172414",
+        //        "firstId": "72234973",
+        //        "lastId": "72423677",
+        //        "count": "188700"
+        //    }
         //
         // coinm
         //
@@ -26626,11 +26725,24 @@ class binance extends _abstract_binance_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
             response = await this.dapiPublicGetTicker24hr(params);
         }
         else if (type === 'spot') {
-            const request = {};
-            if (symbols !== undefined) {
-                request['symbols'] = this.json(this.marketIds(symbols));
+            const rolling = this.safeBool(params, 'rolling', false);
+            params = this.omit(params, 'rolling');
+            if (rolling) {
+                symbols = this.marketSymbols(symbols);
+                const request = {
+                    'symbols': this.json(this.marketIds(symbols)),
+                };
+                response = await this.publicGetTicker(this.extend(request, params));
+                // parseTicker is not able to handle marketType for spot-rolling ticker fields, so we need custom parsing
+                return this.parseTickersForRolling(response, symbols);
             }
-            response = await this.publicGetTicker24hr(this.extend(request, params));
+            else {
+                const request = {};
+                if (symbols !== undefined) {
+                    request['symbols'] = this.json(this.marketIds(symbols));
+                }
+                response = await this.publicGetTicker24hr(this.extend(request, params));
+            }
         }
         else if (type === 'option') {
             response = await this.eapiPublicGetTicker(params);
@@ -26639,6 +26751,17 @@ class binance extends _abstract_binance_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
             throw new _base_errors_js__WEBPACK_IMPORTED_MODULE_2__.NotSupported(this.id + ' fetchTickers() does not support ' + type + ' markets yet');
         }
         return this.parseTickers(response, symbols);
+    }
+    parseTickersForRolling(response, symbols) {
+        const results = [];
+        for (let i = 0; i < response.length; i++) {
+            const marketId = this.safeString(response[i], 'symbol');
+            const tickerMarket = this.safeMarket(marketId, undefined, undefined, 'spot');
+            const parsedTicker = this.parseTicker(response[i]);
+            parsedTicker['symbol'] = tickerMarket['symbol'];
+            results.push(parsedTicker);
+        }
+        return this.filterByArray(results, 'symbol', symbols);
     }
     /**
      * @method
@@ -42224,7 +42347,7 @@ class bingx extends _abstract_bingx_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"
         const id = this.safeString(transaction, 'id', dataId);
         const address = this.safeString(transaction, 'address');
         const tag = this.safeString(transaction, 'addressTag');
-        let timestamp = this.safeInteger(transaction, 'insertTime');
+        let timestamp = this.safeInteger2(transaction, 'insertTime', 'timestamp');
         let datetime = this.iso8601(timestamp);
         if (timestamp === undefined) {
             datetime = this.safeString(transaction, 'applyTime');
@@ -56183,6 +56306,10 @@ class bitget extends _abstract_bitget_js__WEBPACK_IMPORTED_MODULE_0__/* ["defaul
                 response = await this.publicSpotGetV2SpotMarketHistoryCandles(this.extend(request, params));
             }
             else {
+                if (!limitDefined) {
+                    request['limit'] = 1000;
+                    limit = 1000;
+                }
                 response = await this.publicSpotGetV2SpotMarketCandles(this.extend(request, params));
             }
         }
@@ -56193,8 +56320,16 @@ class bitget extends _abstract_bitget_js__WEBPACK_IMPORTED_MODULE_0__/* ["defaul
             [productType, params] = this.handleProductTypeAndParams(market, params);
             request['productType'] = productType;
             const extended = this.extend(request, params);
-            // todo: mark & index also have their "recent" endpoints, but not priority now.
-            if (priceType === 'mark') {
+            if (!historicalEndpointNeeded && (priceType === 'mark' || priceType === 'index')) {
+                if (!limitDefined) {
+                    extended['limit'] = 1000;
+                    limit = 1000;
+                }
+                // Recent endpoint for mark/index prices
+                // https://www.bitget.com/api-doc/contract/market/Get-Candle-Data
+                response = await this.publicMixGetV2MixMarketCandles(this.extend({ 'kLineType': priceType }, extended));
+            }
+            else if (priceType === 'mark') {
                 response = await this.publicMixGetV2MixMarketHistoryMarkCandles(extended);
             }
             else if (priceType === 'index') {
@@ -56205,6 +56340,10 @@ class bitget extends _abstract_bitget_js__WEBPACK_IMPORTED_MODULE_0__/* ["defaul
                     response = await this.publicMixGetV2MixMarketHistoryCandles(extended);
                 }
                 else {
+                    if (!limitDefined) {
+                        extended['limit'] = 1000;
+                        limit = 1000;
+                    }
                     response = await this.publicMixGetV2MixMarketCandles(extended);
                 }
             }
@@ -131209,7 +131348,6 @@ class coinmetro extends _abstract_coinmetro_js__WEBPACK_IMPORTED_MODULE_0__/* ["
             'options': {
                 'currenciesByIdForParseMarket': undefined,
                 'currencyIdsListForParseMarket': ['QRDO'],
-                'skippedMarkets': ['VXVUSDT'], // broken markets which do not have enough info in API
             },
             'features': {
                 'spot': {
@@ -131457,11 +131595,11 @@ class coinmetro extends _abstract_coinmetro_js__WEBPACK_IMPORTED_MODULE_0__/* ["
         //         ...
         //     ]
         //
-        const skippedMarkets = this.safeList(this.options, 'skippedMarkets', []);
         const result = [];
         for (let i = 0; i < response.length; i++) {
             const market = this.parseMarket(response[i]);
-            if (this.inArray(market['id'], skippedMarkets)) {
+            // there are several broken (unavailable info) markets
+            if (market['base'] === undefined || market['quote'] === undefined) {
                 continue;
             }
             result.push(market);
@@ -137656,6 +137794,7 @@ class cryptocom extends _abstract_cryptocom_js__WEBPACK_IMPORTED_MODULE_0__/* ["
             'exceptions': {
                 'exact': {
                     '219': _base_errors_js__WEBPACK_IMPORTED_MODULE_2__.InvalidOrder,
+                    '306': _base_errors_js__WEBPACK_IMPORTED_MODULE_2__.InsufficientFunds,
                     '314': _base_errors_js__WEBPACK_IMPORTED_MODULE_2__.InvalidOrder,
                     '325': _base_errors_js__WEBPACK_IMPORTED_MODULE_2__.InvalidOrder,
                     '415': _base_errors_js__WEBPACK_IMPORTED_MODULE_2__.InvalidOrder,
@@ -161723,7 +161862,7 @@ class exmo extends _abstract_exmo_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
             request['to'] = to;
         }
         else {
-            request['from'] = this.parseToInt(since / 1000) - 1;
+            request['from'] = this.parseToInt(since / 1000);
             if (untilIsDefined) {
                 request['to'] = Math.min(until, now);
             }
@@ -166318,7 +166457,6 @@ class gate extends _abstract_gate_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                     'SOL': 'SOL',
                     'POLYGON': 'POL',
                     'MATIC': 'POL',
-                    'OP': 'OPETH',
                     'OPTIMISM': 'OPETH',
                     'ADA': 'ADA',
                     'AVAXC': 'AVAX_C',
@@ -199006,10 +199144,9 @@ class hyperliquid extends _abstract_hyperliquid_js__WEBPACK_IMPORTED_MODULE_0__/
                 throw new _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.NotSupported(this.id + ' transfer() only support spot <> swap transfer');
             }
             let strAmount = this.numberToString(amount);
-            let vaultAddress = undefined;
-            [vaultAddress, params] = this.handleOptionAndParams(params, 'transfer', 'vaultAddress');
-            vaultAddress = this.formatVaultAddress(vaultAddress);
+            let vaultAddress = this.safeString2(params, 'vaultAddress', 'subAccountAddress');
             if (vaultAddress !== undefined) {
+                vaultAddress = this.formatVaultAddress(vaultAddress);
                 strAmount = strAmount + ' subaccount:' + vaultAddress;
             }
             const toPerp = (toAccount === 'perp') || (toAccount === 'swap');
@@ -199039,12 +199176,6 @@ class hyperliquid extends _abstract_hyperliquid_js__WEBPACK_IMPORTED_MODULE_0__/
             return transferResponse;
         }
         // transfer between main account and subaccount
-        if (code !== undefined) {
-            code = code.toUpperCase();
-            if (code !== 'USDC') {
-                throw new _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.NotSupported(this.id + ' transfer() only support USDC');
-            }
-        }
         let isDeposit = false;
         let subAccountAddress = undefined;
         if (fromAccount === 'main') {
@@ -199058,24 +199189,46 @@ class hyperliquid extends _abstract_hyperliquid_js__WEBPACK_IMPORTED_MODULE_0__/
             throw new _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.NotSupported(this.id + ' transfer() only support main <> subaccount transfer');
         }
         this.checkAddress(subAccountAddress);
-        const usd = this.parseToInt(_base_Precise_js__WEBPACK_IMPORTED_MODULE_3__/* .Precise */ .Y.stringMul(this.numberToString(amount), '1000000'));
-        const action = {
-            'type': 'subAccountTransfer',
-            'subAccountUser': subAccountAddress,
-            'isDeposit': isDeposit,
-            'usd': usd,
-        };
-        const sig = this.signL1Action(action, nonce);
-        const request = {
-            'action': action,
-            'nonce': nonce,
-            'signature': sig,
-        };
-        const response = await this.privatePostExchange(request);
-        //
-        // {'response': {'type': 'default'}, 'status': 'ok'}
-        //
-        return this.parseTransfer(response);
+        if (code === undefined || code.toUpperCase() === 'USDC') {
+            // Transfer USDC with subAccountTransfer
+            const usd = this.parseToInt(_base_Precise_js__WEBPACK_IMPORTED_MODULE_3__/* .Precise */ .Y.stringMul(this.numberToString(amount), '1000000'));
+            const action = {
+                'type': 'subAccountTransfer',
+                'subAccountUser': subAccountAddress,
+                'isDeposit': isDeposit,
+                'usd': usd,
+            };
+            const sig = this.signL1Action(action, nonce);
+            const request = {
+                'action': action,
+                'nonce': nonce,
+                'signature': sig,
+            };
+            const response = await this.privatePostExchange(request);
+            //
+            // {'response': {'type': 'default'}, 'status': 'ok'}
+            //
+            return this.parseTransfer(response);
+        }
+        else {
+            // Transfer non-USDC with subAccountSpotTransfer
+            const symbol = this.symbol(code);
+            const action = {
+                'type': 'subAccountSpotTransfer',
+                'subAccountUser': subAccountAddress,
+                'isDeposit': isDeposit,
+                'token': symbol,
+                'amount': this.numberToString(amount),
+            };
+            const sig = this.signL1Action(action, nonce);
+            const request = {
+                'action': action,
+                'nonce': nonce,
+                'signature': sig,
+            };
+            const response = await this.privatePostExchange(request);
+            return this.parseTransfer(response);
+        }
     }
     parseTransfer(transfer, currency = undefined) {
         //
@@ -200939,6 +201092,9 @@ class indodax extends _abstract_indodax_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'future': false,
                 'option': false,
                 'addMargin': false,
+                'borrowCrossMargin': false,
+                'borrowIsolatedMargin': false,
+                'borrowMargin': false,
                 'cancelAllOrders': false,
                 'cancelOrder': true,
                 'cancelOrders': false,
@@ -200950,9 +201106,14 @@ class indodax extends _abstract_indodax_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'createStopLimitOrder': false,
                 'createStopMarketOrder': false,
                 'createStopOrder': false,
+                'fetchAllGreeks': false,
                 'fetchBalance': true,
+                'fetchBorrowInterest': false,
+                'fetchBorrowRate': false,
                 'fetchBorrowRateHistories': false,
                 'fetchBorrowRateHistory': false,
+                'fetchBorrowRates': false,
+                'fetchBorrowRatesPerSymbol': false,
                 'fetchClosedOrders': true,
                 'fetchCrossBorrowRate': false,
                 'fetchCrossBorrowRates': false,
@@ -200963,30 +201124,52 @@ class indodax extends _abstract_indodax_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'fetchDeposits': false,
                 'fetchDepositsWithdrawals': true,
                 'fetchFundingHistory': false,
+                'fetchFundingInterval': false,
+                'fetchFundingIntervals': false,
                 'fetchFundingRate': false,
                 'fetchFundingRateHistory': false,
                 'fetchFundingRates': false,
+                'fetchGreeks': false,
                 'fetchIndexOHLCV': false,
                 'fetchIsolatedBorrowRate': false,
                 'fetchIsolatedBorrowRates': false,
+                'fetchIsolatedPositions': false,
                 'fetchLeverage': false,
+                'fetchLeverages': false,
                 'fetchLeverageTiers': false,
+                'fetchLiquidations': false,
+                'fetchLongShortRatio': false,
+                'fetchLongShortRatioHistory': false,
+                'fetchMarginAdjustmentHistory': false,
                 'fetchMarginMode': false,
+                'fetchMarginModes': false,
+                'fetchMarketLeverageTiers': false,
                 'fetchMarkets': true,
                 'fetchMarkOHLCV': false,
+                'fetchMarkPrice': false,
+                'fetchMarkPrices': false,
+                'fetchMyLiquidations': false,
+                'fetchMySettlementHistory': false,
+                'fetchOpenInterest': false,
                 'fetchOpenInterestHistory': false,
+                'fetchOpenInterests': false,
                 'fetchOpenOrders': true,
+                'fetchOption': false,
+                'fetchOptionChain': false,
                 'fetchOrder': true,
                 'fetchOrderBook': true,
                 'fetchOrders': false,
                 'fetchPosition': false,
+                'fetchPositionForSymbolWs': false,
                 'fetchPositionHistory': false,
                 'fetchPositionMode': false,
                 'fetchPositions': false,
                 'fetchPositionsForSymbol': false,
+                'fetchPositionsForSymbolWs': false,
                 'fetchPositionsHistory': false,
                 'fetchPositionsRisk': false,
                 'fetchPremiumIndexOHLCV': false,
+                'fetchSettlementHistory': false,
                 'fetchTicker': true,
                 'fetchTime': true,
                 'fetchTrades': true,
@@ -200997,9 +201180,13 @@ class indodax extends _abstract_indodax_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'fetchTransactions': 'emulated',
                 'fetchTransfer': false,
                 'fetchTransfers': false,
+                'fetchUnderlyingAssets': false,
+                'fetchVolatilityHistory': false,
                 'fetchWithdrawal': false,
                 'fetchWithdrawals': false,
                 'reduceMargin': false,
+                'repayCrossMargin': false,
+                'repayIsolatedMargin': false,
                 'setLeverage': false,
                 'setMargin': false,
                 'setMarginMode': false,
@@ -209553,7 +209740,7 @@ class kucoin extends _abstract_kucoin_js__WEBPACK_IMPORTED_MODULE_0__/* ["defaul
                     'TLOS': 'tlos',
                     'CFX': 'cfx',
                     'ACA': 'aca',
-                    'OP': 'optimism',
+                    'OPTIMISM': 'optimism',
                     'ONT': 'ont',
                     'GLMR': 'glmr',
                     'CSPR': 'cspr',
@@ -209673,6 +209860,7 @@ class kucoin extends _abstract_kucoin_js__WEBPACK_IMPORTED_MODULE_0__/* ["defaul
                     'CS': 'cs',
                     'ORAI': 'orai',
                     'BASE': 'base',
+                    'TARA': 'tara',
                     // below will be uncommented after consensus
                     // 'BITCOINDIAMON': 'bcd',
                     // 'BITCOINGOLD': 'btg',
@@ -217335,6 +217523,10 @@ class latoken extends _abstract_latoken_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'swap': false,
                 'future': false,
                 'option': false,
+                'addMargin': false,
+                'borrowCrossMargin': false,
+                'borrowIsolatedMargin': false,
+                'borrowMargin': false,
                 'cancelAllOrders': true,
                 'cancelOrder': true,
                 'closeAllPositions': false,
@@ -217344,9 +217536,14 @@ class latoken extends _abstract_latoken_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'createStopLimitOrder': true,
                 'createStopMarketOrder': false,
                 'createStopOrder': true,
+                'fetchAllGreeks': false,
                 'fetchBalance': true,
+                'fetchBorrowInterest': false,
+                'fetchBorrowRate': false,
                 'fetchBorrowRateHistories': false,
                 'fetchBorrowRateHistory': false,
+                'fetchBorrowRates': false,
+                'fetchBorrowRatesPerSymbol': false,
                 'fetchCrossBorrowRate': false,
                 'fetchCrossBorrowRates': false,
                 'fetchCurrencies': true,
@@ -217361,12 +217558,34 @@ class latoken extends _abstract_latoken_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'fetchFundingRate': false,
                 'fetchFundingRateHistory': false,
                 'fetchFundingRates': false,
+                'fetchGreeks': false,
+                'fetchIndexOHLCV': false,
                 'fetchIsolatedBorrowRate': false,
                 'fetchIsolatedBorrowRates': false,
+                'fetchIsolatedPositions': false,
+                'fetchLeverage': false,
+                'fetchLeverages': false,
+                'fetchLeverageTiers': false,
+                'fetchLiquidations': false,
+                'fetchLongShortRatio': false,
+                'fetchLongShortRatioHistory': false,
+                'fetchMarginAdjustmentHistory': false,
                 'fetchMarginMode': false,
+                'fetchMarginModes': false,
+                'fetchMarketLeverageTiers': false,
                 'fetchMarkets': true,
+                'fetchMarkOHLCV': false,
+                'fetchMarkPrice': false,
+                'fetchMarkPrices': false,
+                'fetchMyLiquidations': false,
+                'fetchMySettlementHistory': false,
                 'fetchMyTrades': true,
+                'fetchOpenInterest': false,
+                'fetchOpenInterestHistory': false,
+                'fetchOpenInterests': false,
                 'fetchOpenOrders': true,
+                'fetchOption': false,
+                'fetchOptionChain': false,
                 'fetchOrder': true,
                 'fetchOrderBook': true,
                 'fetchOrders': true,
@@ -217377,6 +217596,8 @@ class latoken extends _abstract_latoken_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'fetchPositionsForSymbol': false,
                 'fetchPositionsHistory': false,
                 'fetchPositionsRisk': false,
+                'fetchPremiumIndexOHLCV': false,
+                'fetchSettlementHistory': false,
                 'fetchTicker': true,
                 'fetchTickers': true,
                 'fetchTime': true,
@@ -217386,6 +217607,15 @@ class latoken extends _abstract_latoken_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'fetchTransactions': 'emulated',
                 'fetchTransfer': false,
                 'fetchTransfers': true,
+                'fetchUnderlyingAssets': false,
+                'fetchVolatilityHistory': false,
+                'reduceMargin': false,
+                'repayCrossMargin': false,
+                'repayIsolatedMargin': false,
+                'setLeverage': false,
+                'setMargin': false,
+                'setMarginMode': false,
+                'setPositionMode': false,
                 'transfer': true,
             },
             'urls': {
@@ -222285,6 +222515,9 @@ class luno extends _abstract_luno_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                 'future': false,
                 'option': false,
                 'addMargin': false,
+                'borrowCrossMargin': false,
+                'borrowIsolatedMargin': false,
+                'borrowMargin': false,
                 'cancelOrder': true,
                 'closeAllPositions': false,
                 'closePosition': false,
@@ -222292,48 +222525,81 @@ class luno extends _abstract_luno_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                 'createOrder': true,
                 'createReduceOnlyOrder': false,
                 'fetchAccounts': true,
+                'fetchAllGreeks': false,
                 'fetchBalance': true,
+                'fetchBorrowInterest': false,
+                'fetchBorrowRate': false,
+                'fetchBorrowRateHistories': false,
                 'fetchBorrowRateHistory': false,
+                'fetchBorrowRates': false,
+                'fetchBorrowRatesPerSymbol': false,
                 'fetchClosedOrders': true,
                 'fetchCrossBorrowRate': false,
                 'fetchCrossBorrowRates': false,
                 'fetchCurrencies': true,
                 'fetchDepositAddress': true,
                 'fetchFundingHistory': false,
+                'fetchFundingInterval': false,
+                'fetchFundingIntervals': false,
                 'fetchFundingRate': false,
                 'fetchFundingRateHistory': false,
                 'fetchFundingRates': false,
+                'fetchGreeks': false,
                 'fetchIndexOHLCV': false,
                 'fetchIsolatedBorrowRate': false,
                 'fetchIsolatedBorrowRates': false,
+                'fetchIsolatedPositions': false,
                 'fetchLedger': true,
                 'fetchLeverage': false,
+                'fetchLeverages': false,
                 'fetchLeverageTiers': false,
+                'fetchLiquidations': false,
+                'fetchLongShortRatio': false,
+                'fetchLongShortRatioHistory': false,
+                'fetchMarginAdjustmentHistory': false,
                 'fetchMarginMode': false,
+                'fetchMarginModes': false,
+                'fetchMarketLeverageTiers': false,
                 'fetchMarkets': true,
                 'fetchMarkOHLCV': false,
+                'fetchMarkPrice': false,
+                'fetchMarkPrices': false,
+                'fetchMyLiquidations': false,
+                'fetchMySettlementHistory': false,
                 'fetchMyTrades': true,
                 'fetchOHLCV': true,
+                'fetchOpenInterest': false,
                 'fetchOpenInterestHistory': false,
+                'fetchOpenInterests': false,
                 'fetchOpenOrders': true,
+                'fetchOption': false,
+                'fetchOptionChain': false,
                 'fetchOrder': true,
                 'fetchOrderBook': true,
                 'fetchOrders': true,
                 'fetchPosition': false,
+                'fetchPositionForSymbolWs': false,
                 'fetchPositionHistory': false,
                 'fetchPositionMode': false,
                 'fetchPositions': false,
                 'fetchPositionsForSymbol': false,
+                'fetchPositionsForSymbolWs': false,
                 'fetchPositionsHistory': false,
                 'fetchPositionsRisk': false,
                 'fetchPremiumIndexOHLCV': false,
+                'fetchSettlementHistory': false,
                 'fetchTicker': true,
                 'fetchTickers': true,
                 'fetchTrades': true,
                 'fetchTradingFee': true,
                 'fetchTradingFees': false,
+                'fetchUnderlyingAssets': false,
+                'fetchVolatilityHistory': false,
                 'reduceMargin': false,
+                'repayCrossMargin': false,
+                'repayIsolatedMargin': false,
                 'setLeverage': false,
+                'setMargin': false,
                 'setMarginMode': false,
                 'setPositionMode': false,
             },
@@ -223736,6 +224002,9 @@ class mercado extends _abstract_mercado_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'future': false,
                 'option': false,
                 'addMargin': false,
+                'borrowCrossMargin': false,
+                'borrowIsolatedMargin': false,
+                'borrowMargin': false,
                 'cancelOrder': true,
                 'closeAllPositions': false,
                 'closePosition': false,
@@ -223745,29 +224014,54 @@ class mercado extends _abstract_mercado_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'createStopLimitOrder': false,
                 'createStopMarketOrder': false,
                 'createStopOrder': false,
+                'fetchAllGreeks': false,
                 'fetchBalance': true,
+                'fetchBorrowInterest': false,
+                'fetchBorrowRate': false,
+                'fetchBorrowRateHistories': false,
                 'fetchBorrowRateHistory': false,
+                'fetchBorrowRates': false,
+                'fetchBorrowRatesPerSymbol': false,
                 'fetchCrossBorrowRate': false,
                 'fetchCrossBorrowRates': false,
                 'fetchDepositAddress': false,
                 'fetchDepositAddresses': false,
                 'fetchDepositAddressesByNetwork': false,
                 'fetchFundingHistory': false,
+                'fetchFundingInterval': false,
+                'fetchFundingIntervals': false,
                 'fetchFundingRate': false,
                 'fetchFundingRateHistory': false,
                 'fetchFundingRates': false,
+                'fetchGreeks': false,
                 'fetchIndexOHLCV': false,
                 'fetchIsolatedBorrowRate': false,
                 'fetchIsolatedBorrowRates': false,
+                'fetchIsolatedPositions': false,
                 'fetchLeverage': false,
+                'fetchLeverages': false,
                 'fetchLeverageTiers': false,
+                'fetchLiquidations': false,
+                'fetchLongShortRatio': false,
+                'fetchLongShortRatioHistory': false,
+                'fetchMarginAdjustmentHistory': false,
                 'fetchMarginMode': false,
+                'fetchMarginModes': false,
+                'fetchMarketLeverageTiers': false,
                 'fetchMarkets': true,
                 'fetchMarkOHLCV': false,
+                'fetchMarkPrice': false,
+                'fetchMarkPrices': false,
+                'fetchMyLiquidations': false,
+                'fetchMySettlementHistory': false,
                 'fetchMyTrades': 'emulated',
                 'fetchOHLCV': true,
+                'fetchOpenInterest': false,
                 'fetchOpenInterestHistory': false,
+                'fetchOpenInterests': false,
                 'fetchOpenOrders': true,
+                'fetchOption': false,
+                'fetchOptionChain': false,
                 'fetchOrder': true,
                 'fetchOrderBook': true,
                 'fetchOrders': true,
@@ -223779,13 +224073,19 @@ class mercado extends _abstract_mercado_js__WEBPACK_IMPORTED_MODULE_0__/* ["defa
                 'fetchPositionsHistory': false,
                 'fetchPositionsRisk': false,
                 'fetchPremiumIndexOHLCV': false,
+                'fetchSettlementHistory': false,
                 'fetchTicker': true,
                 'fetchTickers': false,
                 'fetchTrades': true,
                 'fetchTradingFee': false,
                 'fetchTradingFees': false,
+                'fetchUnderlyingAssets': false,
+                'fetchVolatilityHistory': false,
                 'reduceMargin': false,
+                'repayCrossMargin': false,
+                'repayIsolatedMargin': false,
                 'setLeverage': false,
+                'setMargin': false,
                 'setMarginMode': false,
                 'setPositionMode': false,
                 'withdraw': true,
@@ -225128,6 +225428,7 @@ class mexc extends _abstract_mexc_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                         },
                     },
                 },
+                'useCcxtTradeId': true,
                 'timeframes': {
                     'spot': {
                         '1m': '1m',
@@ -226408,8 +226709,8 @@ class mexc extends _abstract_mexc_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                 }
             }
         }
-        if (id === undefined) {
-            id = this.syntheticTradeId(market, timestamp, side, amountString, priceString, type, takerOrMaker);
+        if (id === undefined && this.safeBool(this.options, 'useCcxtTradeId', true)) {
+            id = this.createCcxtTradeId(timestamp, side, amountString, priceString, takerOrMaker);
         }
         return this.safeTrade({
             'id': id,
@@ -226426,29 +226727,6 @@ class mexc extends _abstract_mexc_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
             'fee': fee,
             'info': trade,
         }, market);
-    }
-    syntheticTradeId(market = undefined, timestamp = undefined, side = undefined, amount = undefined, price = undefined, orderType = undefined, takerOrMaker = undefined) {
-        // TODO: can be unified method? this approach is being used by multiple exchanges (mexc, woo-coinsbit, dydx, ...)
-        let id = '';
-        if (timestamp !== undefined) {
-            id = this.numberToString(timestamp) + '-' + this.safeString(market, 'id', '_');
-            if (side !== undefined) {
-                id += '-' + side;
-            }
-            if (amount !== undefined) {
-                id += '-' + this.numberToString(amount);
-            }
-            if (price !== undefined) {
-                id += '-' + this.numberToString(price);
-            }
-            if (takerOrMaker !== undefined) {
-                id += '-' + takerOrMaker;
-            }
-            if (orderType !== undefined) {
-                id += '-' + orderType;
-            }
-        }
-        return id;
     }
     /**
      * @method
@@ -233760,6 +234038,9 @@ class ndax extends _abstract_ndax_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                 'future': false,
                 'option': false,
                 'addMargin': false,
+                'borrowCrossMargin': false,
+                'borrowIsolatedMargin': false,
+                'borrowMargin': false,
                 'cancelAllOrders': true,
                 'cancelOrder': true,
                 'closeAllPositions': false,
@@ -233772,6 +234053,7 @@ class ndax extends _abstract_ndax_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                 'createStopOrder': true,
                 'editOrder': true,
                 'fetchAccounts': true,
+                'fetchAllGreeks': false,
                 'fetchBalance': true,
                 'fetchBorrowInterest': false,
                 'fetchBorrowRate': false,
@@ -233802,12 +234084,15 @@ class ndax extends _abstract_ndax_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                 'fetchLeverages': false,
                 'fetchLeverageTiers': false,
                 'fetchLiquidations': false,
+                'fetchLongShortRatio': false,
+                'fetchLongShortRatioHistory': false,
                 'fetchMarginAdjustmentHistory': false,
                 'fetchMarginMode': false,
                 'fetchMarginModes': false,
                 'fetchMarketLeverageTiers': false,
                 'fetchMarkets': true,
                 'fetchMarkOHLCV': false,
+                'fetchMarkPrice': false,
                 'fetchMarkPrices': false,
                 'fetchMyLiquidations': false,
                 'fetchMySettlementHistory': false,
@@ -233815,6 +234100,7 @@ class ndax extends _abstract_ndax_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] 
                 'fetchOHLCV': true,
                 'fetchOpenInterest': false,
                 'fetchOpenInterestHistory': false,
+                'fetchOpenInterests': false,
                 'fetchOpenOrders': true,
                 'fetchOption': false,
                 'fetchOptionChain': false,
@@ -243070,6 +243356,7 @@ class okx extends _abstract_okx_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] */
                     '51137': _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.InvalidOrder,
                     '51138': _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.InvalidOrder,
                     '51139': _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.InvalidOrder,
+                    '51155': _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.RestrictedLocation,
                     '51156': _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.BadRequest,
                     '51159': _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.BadRequest,
                     '51162': _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.InvalidOrder,
@@ -291079,6 +291366,17 @@ class bybit extends _bybit_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] */ .A {
                 'watchTrades': true,
                 'watchPositions': true,
                 'watchTradesForSymbols': true,
+                'unWatchTicker': true,
+                'unWatchTickers': true,
+                'unWatchOHLCV': true,
+                'unWatchOHLCVForSymbols': true,
+                'unWatchOrderBook': true,
+                'unWatchOrderBookForSymbols': true,
+                'unWatchTrades': true,
+                'unWatchTradesForSymbols': true,
+                'unWatchMyTrades': true,
+                'unWatchOrders': true,
+                'unWatchPositions': true,
             },
             'urls': {
                 'api': {
@@ -292593,6 +292891,28 @@ class bybit extends _bybit_js__WEBPACK_IMPORTED_MODULE_0__/* ["default"] */ .A {
             }
         }
         client.resolve(newPositions, 'positions');
+    }
+    /**
+     * @method
+     * @name bybit#unWatchPositions
+     * @description unWatches all open positions
+     * @see https://bybit-exchange.github.io/docs/v5/websocket/private/position
+     * @param {string[]} [symbols] list of unified market symbols
+     * @param {object} [params] extra parameters specific to the exchange API endpoint
+     * @returns {object} status of the unwatch request
+     */
+    async unWatchPositions(symbols = undefined, params = {}) {
+        await this.loadMarkets();
+        const method = 'watchPositions';
+        const messageHash = 'unsubscribe:positions';
+        const subHash = 'positions';
+        if (!this.isEmpty(symbols)) {
+            throw new _base_errors_js__WEBPACK_IMPORTED_MODULE_1__.NotSupported(this.id + ' unWatchPositions() does not support a symbol parameter, you must unwatch all orders');
+        }
+        const url = await this.getUrlByMarketType(undefined, true, method, params);
+        await this.authenticate(url);
+        const topics = ['position'];
+        return await this.unWatchTopics(url, 'positions', symbols, [messageHash], [subHash], topics, params);
     }
     /**
      * @method
@@ -408589,6 +408909,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   Precise: () => (/* reexport safe */ ccxt_src_base_Precise_js_WEBPACK_IMPORTED_MODULE_180_.Y),
 /* harmony export */   RateLimitExceeded: () => (/* reexport safe */ ccxt_src_base_errors_js_WEBPACK_IMPORTED_MODULE_182_.RateLimitExceeded),
 /* harmony export */   RequestTimeout: () => (/* reexport safe */ ccxt_src_base_errors_js_WEBPACK_IMPORTED_MODULE_182_.RequestTimeout),
+/* harmony export */   RestrictedLocation: () => (/* reexport safe */ ccxt_src_base_errors_js_WEBPACK_IMPORTED_MODULE_182_.RestrictedLocation),
 /* harmony export */   UnsubscribeError: () => (/* reexport safe */ ccxt_src_base_errors_js_WEBPACK_IMPORTED_MODULE_182_.UnsubscribeError),
 /* harmony export */   alpaca: () => (/* reexport safe */ ccxt_src_alpaca_js_WEBPACK_IMPORTED_MODULE_1_.A),
 /* harmony export */   apex: () => (/* reexport safe */ ccxt_src_apex_js_WEBPACK_IMPORTED_MODULE_2_.A),
@@ -408920,7 +409241,7 @@ SOFTWARE.
 
 //-----------------------------------------------------------------------------
 // this is updated by vss.js when building
-const ccxt_version = '4.4.96';
+const ccxt_version = '4.4.97';
 ccxt_src_base_Exchange_js_WEBPACK_IMPORTED_MODULE_0_/* .Exchange */ .k.ccxtVersion = ccxt_version;
 //-----------------------------------------------------------------------------
 
